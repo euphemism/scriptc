@@ -123,6 +123,14 @@
           linux-arm64-musl = mkRuntimePack "linux-arm64-musl" "sha256-BoWirOmienUTTcr2fgsYwAJjV3GGrHLXygw6Lp+hXRA=";
 
           linux-arm64-gnu = mkRuntimePack "linux-arm64-gnu" "sha256-QLsrsQC8m/R9BTmWM9sjucvCqMCQ82LSmV2z3oK8Xz4=";
+
+          windows-x64-gnu = mkRuntimePack "win32-x64-msvc" "sha256-XO0D6iIjMkRY/M6yWV6gZ1sNeG/Oc7yi+Oh7pZHEmd4=";
+
+          apple-ios-arm64 = mkRuntimePack "ios-arm64" "sha256-XvmAQf0huMP8+NF/20VwkU+BI4LSJNjEXegOq2KNs/U=";
+
+          apple-ios-arm64-simulator = mkRuntimePack "ios-simulator-arm64" "sha256-/2rN6Kbf2e2TfgS2bOcSQu2025zZotHa9vFzF3fw6Uk=";
+
+          linux-arm64-android = mkRuntimePack "android-arm64" "sha256-n062aEeVWd91Q1K2luLMZH8LhDHeXpncMJfigcQWsWk=";
         };
 
         ######################################################################
@@ -148,6 +156,23 @@
           {
             name = "linux-arm64-gnu";
             path = runtimePacks.linux-arm64-gnu;
+          }
+
+          {
+            name = "windows-x64-gnu";
+            path = runtimePacks.windows-x64-gnu;
+          }
+          {
+            name = "apple-ios-arm64";
+            path = runtimePacks.apple-ios-arm64;
+          }
+          {
+            name = "apple-ios-arm64-simulator";
+            path = runtimePacks.apple-ios-arm64-simulator;
+          }
+          {
+            name = "linux-arm64-android";
+            path = runtimePacks.linux-arm64-android;
           }
         ];
 
@@ -203,6 +228,22 @@
 
                 aarch64-linux-gnu*)
                   runtimePack="linux-arm64-gnu"
+                  ;;
+
+                x86_64-windows-gnu)
+                  runtimePack="windows-x64-gnu"
+                  ;;
+
+                aarch64-apple-ios)
+                  runtimePack="apple-ios-arm64"
+                  ;;
+
+                aarch64-apple-ios-simulator)
+                  runtimePack="apple-ios-arm64-simulator"
+                  ;;
+
+                aarch64-linux-android)
+                  runtimePack="linux-arm64-android"
                   ;;
 
                 *)
@@ -267,334 +308,3 @@
       }
     );
 }
-# {
-#   description = "scriptc native and cross compilation toolchains";
-
-#   inputs = {
-#     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-#     flake-utils.url = "github:numtide/flake-utils";
-#   };
-
-#   outputs =
-#     {
-#       self,
-#       nixpkgs,
-#       flake-utils,
-#     }:
-#     flake-utils.lib.eachDefaultSystem (
-#       system:
-#       let
-#         pkgs = import nixpkgs {
-#           inherit system;
-#         };
-
-#         version = "0.3.6";
-
-#         assets = {
-#           x86_64-linux = {
-#             platform = "linux-x64-gnu";
-#             hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-#           };
-
-#           aarch64-linux = {
-#             platform = "linux-arm64-gnu";
-#             hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-#           };
-
-#           x86_64-darwin = {
-#             platform = "darwin-x64";
-#             hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-#           };
-
-#           aarch64-darwin = {
-#             platform = "darwin-arm64";
-#             hash = "sha256-2MM+dgGnEil0F8RYm2bs6QB/zjuG81p/0gzZkznK4XI=";
-#           };
-#         };
-
-#         asset = assets.${system} or (throw "unsupported system: ${system}");
-
-#         scriptc = pkgs.stdenvNoCC.mkDerivation rec {
-#           pname = "scriptc";
-#           inherit version;
-
-#           src = pkgs.fetchurl {
-#             url = "https://github.com/vercel-labs/scriptc/releases/download/v${version}/scriptc-${version}-${asset.platform}.tar.gz";
-
-#             hash = asset.hash;
-#           };
-
-#           dontBuild = true;
-#           dontConfigure = true;
-
-#           sourceRoot = ".";
-
-#           installPhase = ''
-#             runHook preInstall
-
-#             mkdir -p $out
-
-#             cp -r ./* $out/
-
-#             chmod -R u+w $out
-
-#             runHook postInstall
-#           '';
-
-#           meta = {
-#             mainProgram = "scriptc";
-#           };
-#         };
-
-#         nativeToolchain = pkgs.writeShellApplication {
-#           name = "scriptc";
-
-#           runtimeInputs = [
-#             scriptc
-#             pkgs.clang
-#             pkgs.git
-#           ];
-
-#           text = ''
-#             exec ${scriptc}/bin/scriptc "$@"
-#           '';
-#         };
-
-#         # mkRuntimePack =
-#         #   {
-#         #     pname,
-#         #     hash,
-#         #   }:
-
-#         #   pkgs.fetchzip {
-#         #     url = "https://registry.npmjs.org/@scriptc/${pname}/-/${pname}-${version}.tgz";
-
-#         #     inherit hash;
-
-#         #     stripRoot = false;
-#         #   };
-#         mkRuntimePack =
-#           {
-#             target,
-#             hash,
-#           }:
-
-#           pkgs.stdenvNoCC.mkDerivation {
-#             pname = "scriptc-runtime-${target}";
-#             version = version;
-
-#             src = pkgs.fetchzip {
-#               url = "https://registry.npmjs.org/@scriptc/runtime-${target}/-/runtime-${target}-${version}.tgz";
-
-#               inherit hash;
-
-#               stripRoot = false;
-#             };
-
-#             dontBuild = true;
-#             dontConfigure = true;
-
-#             installPhase = ''
-#               mkdir -p $out
-#               cp -R ./* $out/
-#             '';
-#           };
-
-#         # runtimePacks = {
-#         #   wasm32-wasi = mkRuntimePack {
-#         #     pname = "runtime-wasm32-wasi";
-#         #     hash = "sha256-...";
-#         #   };
-
-#         #   x86_64-linux-musl = mkRuntimePack {
-#         #     pname = "runtime-linux-x64-musl";
-#         #     hash = "sha256-...";
-#         #   };
-
-#         #   aarch64-linux-musl = mkRuntimePack {
-#         #     pname = "runtime-linux-arm64-musl";
-#         #     hash = "sha256-...";
-#         #   };
-
-#         #   aarch64-linux-gnu = mkRuntimePack {
-#         #     pname = "runtime-linux-arm64-gnu";
-#         #     hash = "sha256-...";
-#         #   };
-#         # };
-
-#         runtimePacks = {
-#           wasm32-wasi = mkRuntimePack {
-#             target = "wasm32-wasi";
-#             hash = "...";
-#           };
-
-#           x86_64-linux-musl = mkRuntimePack {
-#             target = "linux-x64-musl";
-#             hash = "...";
-#           };
-
-#           aarch64-linux-musl = mkRuntimePack {
-#             target = "linux-arm64-musl";
-#             hash = "...";
-#           };
-
-#           aarch64-linux-gnu = mkRuntimePack {
-#             target = "linux-arm64-gnu";
-#             hash = "...";
-#           };
-#         };
-
-#         # crossToolchain = pkgs.writeShellApplication {
-#         #   name = "scriptc-cross";
-
-#         #   runtimeInputs = [
-#         #     scriptc
-#         #     pkgs.zig
-#         #     pkgs.binutils
-#         #   ];
-
-#         #   text = ''
-#         #     target="''${SCRIPTC_TARGET:-}"
-
-#         #     case "$target" in
-#         #       wasm32-wasi)
-#         #         export SCRIPTC_RUNTIME_PACK="${runtimePacks.wasm32-wasi}"
-#         #         ;;
-
-#         #       x86_64-linux-musl)
-#         #         export SCRIPTC_RUNTIME_PACK="${runtimePacks.x86_64-linux-musl}"
-#         #         ;;
-
-#         #       aarch64-linux-musl)
-#         #         export SCRIPTC_RUNTIME_PACK="${runtimePacks.aarch64-linux-musl}"
-#         #         ;;
-
-#         #       aarch64-linux-gnu*)
-#         #         export SCRIPTC_RUNTIME*PACK="${runtimePacks.aarch64-linux * gnu}"
-#         #         ;;
-
-#         #       "")
-#         #         ;;
-
-#         #       *)
-#         #         echo "Unsupported SCRIPTC_TARGET: $target" >&2
-#         #         echo "Known targets:" >&2
-#         #         echo "  wasm32-wasi" >&2
-#         #         echo "  x86_64-linux-musl" >&2
-#         #         echo "  aarch64-linux-musl" >&2
-#         #         echo "  aarch64-linux-gnu.*" >&2
-#         #         exit 1
-#         #         ;;
-#         #     esac
-
-#         #     export SCRIPTC_CC=zigcc
-
-#         #     exec ${scriptc}/bin/scriptc "$@"
-#         #   '';
-#         # };
-#         crossToolchain = pkgs.writeShellApplication {
-#           name = "scriptc-cross";
-
-#           runtimeInputs = [
-#             scriptc
-#             pkgs.zig
-#             pkgs.binutils
-#           ];
-
-#           text = ''
-#             target="''${SCRIPTC_TARGET:-}"
-
-#             export SCRIPTC_CC=zigcc
-
-#             case "$target" in
-#               wasm32-wasi)
-#                 export SCRIPTC_RUNTIME_PACK="${runtimePacks.wasm32-wasi}"
-#                 ;;
-
-#               x86_64-linux-musl)
-#                 export SCRIPTC_RUNTIME_PACK="${runtimePacks.x86_64-linux-musl}"
-#                 ;;
-
-#               aarch64-linux-musl)
-#                 export SCRIPTC_RUNTIME_PACK="${runtimePacks.aarch64-linux-musl}"
-#                 ;;
-
-#               aarch64-linux-gnu*)
-#                 export SCRIPTC_RUNTIME_PACK="${runtimePacks.aarch64-linux-gnu}"
-#                 ;;
-
-#               "")
-#                 ;;
-#             esac
-
-#             exec ${scriptc}/bin/scriptc "$@"
-#           '';
-#         };
-#       in
-#       {
-#         packages = {
-#           inherit scriptc;
-
-#           runtime-wasm32-wasi = runtimePacks.wasm32-wasi;
-
-#           runtime-linux-x64-musl = runtimePacks.x86_64-linux-musl;
-
-#           runtime-linux-arm64-musl = runtimePacks.aarch64-linux-musl;
-
-#           runtime-linux-arm64-gnu = runtimePacks.aarch64-linux-gnu;
-
-#           scriptc-native = nativeToolchain;
-#           scriptc-cross = crossToolchain;
-
-#           default = crossToolchain;
-#         };
-
-#         apps = {
-#           scriptc = {
-#             type = "app";
-#             program = "${nativeToolchain}/bin/scriptc";
-#           };
-
-#           scriptc-cross = {
-#             type = "app";
-#             program = "${crossToolchain}/bin/scriptc-cross";
-#           };
-
-#           default = {
-#             type = "app";
-#             program = "${crossToolchain}/bin/scriptc-cross";
-#           };
-#         };
-
-#         devShells = {
-#           native = pkgs.mkShell {
-#             packages = [
-#               scriptc
-#               pkgs.clang
-#               pkgs.git
-#             ];
-#           };
-
-#           cross = pkgs.mkShell {
-#             packages = [
-#               scriptc
-#               pkgs.zig
-#               pkgs.binutils
-#             ];
-
-#             SCRIPTC_CC = "zigcc";
-#           };
-
-#           default = pkgs.mkShell {
-#             packages = [
-#               scriptc
-#               pkgs.zig
-#               pkgs.binutils
-#             ];
-
-#             SCRIPTC_CC = "zigcc";
-#           };
-#         };
-#       }
-#     );
-# }
