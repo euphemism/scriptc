@@ -96,14 +96,18 @@
         };
       };
 
-      devShells.default = pkgs.mkShell {
-        packages = [
-          scriptcPackage
-          pkgs.clang
-          pkgs.zig
-          pkgs.git
-          pkgs.binutils
-        ];
+      devShells = {
+        default = pkgs.mkShell {
+          packages = [
+            nativeToolchain
+          ];
+        };
+
+        cross = pkgs.mkShell {
+          packages = [
+            crossToolchain
+          ];
+        };
       };
     };
 }
