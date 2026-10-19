@@ -5,6 +5,7 @@
   scriptcVersion,
   system,
   targetMetadata,
+  zigPackage,
 }:
 
 let
@@ -39,11 +40,11 @@ let
   );
 
   mkWrapper = pkgs.callPackage ./wrapper.nix {
-    inherit scriptcPackage;
-
     inherit
       runtimePackTree
+      scriptcPackage
       targetMetadata
+      zigPackage
       ;
   };
 

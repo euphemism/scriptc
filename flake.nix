@@ -5,6 +5,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
     flake-parts.url = "github:hercules-ci/flake-parts";
+
+    zig-overlay.url = "github:mitchellh/zig-overlay";
   };
 
   outputs =

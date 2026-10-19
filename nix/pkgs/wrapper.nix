@@ -4,6 +4,7 @@
   scriptcPackage,
   runtimePackTree,
   targetMetadata,
+  zigPackage,
 }:
 
 {
@@ -16,8 +17,9 @@ let
     scriptcPackage
   ]
   ++ lib.optionals enableCross [
-    pkgs.zig
-    pkgs.binutils
+    zigPackage
+    # pkgs.zig
+    # pkgs.binutils
   ]
   ++ lib.optionals (!enableCross) [
     pkgs.clang
