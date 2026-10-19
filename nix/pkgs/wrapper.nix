@@ -18,8 +18,6 @@ let
   ]
   ++ lib.optionals enableCross [
     zigPackage
-    # pkgs.zig
-    # pkgs.binutils
   ]
   ++ lib.optionals (!enableCross) [
     pkgs.clang

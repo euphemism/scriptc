@@ -12,7 +12,9 @@ let
   scriptcPackage = pkgs.callPackage ./scriptc.nix {
     version = scriptcVersion;
     compilerAssets = compilerMetadata;
+
     inherit system;
+
     inherit (pkgs)
       fetchurl
       runCommand
@@ -63,6 +65,8 @@ in
     crossToolchain
     nativeToolchain
     runtimePacks
+    runtimePackTree
     scriptcPackage
+    targetMetadata
     ;
 }

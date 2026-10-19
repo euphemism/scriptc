@@ -6,6 +6,7 @@
 {
   perSystem =
     {
+      lib,
       pkgs,
       system,
       ...
@@ -15,6 +16,8 @@
       scriptcVersion = "0.3.6";
 
       compilerMetadata = import ./data/compilers.nix;
+
+      imageProfiles = import ./data/image-profiles.nix;
 
       runtimeMetadata = import ./data/runtimes.nix;
 
@@ -29,7 +32,11 @@
           pkgs
           system
           ;
+
+        zigPackage = inputs.zig-overlay.packages.${system}."0.16.0";
       };
+
+      crossToolchains = lib.mapAttrs (_: runtimes: hostPackages.mkCrossToolchain runtimes) imageProfiles;
 
       inherit (hostPackages)
         scriptcPackage
@@ -82,24 +89,68 @@
             ;
 
           pkgs = targetPkgs;
+
           system = targetSystem;
+
+          zigPackage = inputs.zig-overlay.packages.${targetSystem}."0.16.0";
         };
 
       mkScriptcCrossImage =
-        targetSystem:
-        let
-          targetPackages = mkTargetPackages targetSystem;
+        targetSystem: imageProfile:
 
-          containerHostPkgs = import inputs.nixpkgs {
+        let
+          targetPkgs = import inputs.nixpkgs {
             system = targetSystem;
           };
+
+          targetPackages = mkTargetPackages targetSystem;
+
+          profileData = targetPkgs.callPackage ./pkgs/mk-image-profile.nix {
+            runtimePacks = targetPackages.runtimePacks;
+
+            inherit
+              targetMetadata
+              imageProfile
+              ;
+          };
+
+          trimmedScriptc = targetPkgs.callPackage ./pkgs/trim-scriptc.nix {
+            scriptcPackage = targetPackages.scriptcPackage;
+
+            trimPolicy = imageProfile.scriptcTrimPolicy or { };
+          };
+
+          trimmedZig = targetPkgs.callPackage ./pkgs/trim-zig.nix {
+            zigPackage = inputs.zig-overlay.packages.${targetSystem}."0.16.0";
+
+            profile = imageProfile;
+          };
+
+          imageToolchain =
+            targetPkgs.callPackage ./pkgs/wrapper.nix
+              {
+                # scriptcPackage = targetPackages.scriptcPackage;
+
+                scriptcPackage = trimmedScriptc;
+
+                runtimePackTree = profileData.runtimePackTree;
+
+                targetMetadata = profileData.targetMetadataFiltered;
+
+                zigPackage = trimmedZig;
+              }
+              {
+                name = "scriptc-cross";
+                enableCross = true;
+              };
+
         in
         mkImage {
-          inherit containerHostPkgs;
+          containerHostPkgs = targetPkgs;
 
           name = "scriptc-cross";
 
-          toolchain = targetPackages.crossToolchain;
+          toolchain = imageToolchain;
         };
     in
     {
@@ -117,27 +168,27 @@
           linux-arm64-android
           ;
 
+        scriptc-cross-all = crossToolchains.all;
+
+        scriptc-cross-linux = crossToolchains.linux;
+
+        scriptc-cross-mobile = crossToolchains.mobile;
+
+        scriptc-cross-wasm = crossToolchains.wasm;
+
+        scriptc-cross-windows = crossToolchains.windows;
+
         scriptc-native = nativeToolchain;
-        scriptc-cross = crossToolchain;
 
-        scriptc-image = pkgs.dockerTools.buildLayeredImage {
-          name = "scriptc";
-          tag = scriptcVersion;
+        scriptc-cross-all-image-arm64 = mkScriptcCrossImage "aarch64-linux" imageProfiles.all;
 
-          contents = [
-            nativeToolchain
-          ];
+        scriptc-cross-linux-image-arm64 = mkScriptcCrossImage "aarch64-linux" imageProfiles.linux;
 
-          config = {
-            Entrypoint = [
-              "${nativeToolchain}/bin/scriptc"
-            ];
-          };
-        };
+        scriptc-cross-mobile-image-arm64 = mkScriptcCrossImage "aarch64-linux" imageProfiles.mobile;
 
-        scriptc-cross-image-arm64 = mkScriptcCrossImage "aarch64-linux";
+        scriptc-cross-wasm-image-arm64 = mkScriptcCrossImage "aarch64-linux" imageProfiles.wasm;
 
-        scriptc-cross-image-amd64 = mkScriptcCrossImage "x86_64-linux";
+        scriptc-cross-windows-image-arm64 = mkScriptcCrossImage "aarch64-linux" imageProfiles.windows;
 
         default = nativeToolchain;
       };
