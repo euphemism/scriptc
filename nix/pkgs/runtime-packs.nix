@@ -2,49 +2,25 @@
   fetchzip,
   lib,
   metadata,
-  stdenvNoCC,
   version,
+  runCommand,
 }:
-
-let
-  mkRuntimePack =
-    {
-      hash,
-      target,
-      version,
-    }:
-
-    stdenvNoCC.mkDerivation {
-      pname = "scriptc-runtime-${target}";
-      inherit version;
-
-      src = fetchzip {
-        url = "https://registry.npmjs.org/@scriptc/runtime-${target}/-/runtime-${target}-${version}.tgz";
-
-        inherit hash;
-
-        stripRoot = false;
-      };
-
-      installPhase = ''
-        mkdir -p $out
-
-        if [ -d package ]; then
-          cp -R package/* $out/
-        else
-          cp -R ./* $out/
-        fi
-      '';
-    };
-in
 
 lib.mapAttrs (
   _: cfg:
-  mkRuntimePack {
-    inherit version;
+  let
+    src = fetchzip {
+      url = "https://registry.npmjs.org/@scriptc/runtime-${cfg.npmName}/-/runtime-${cfg.npmName}-${version}.tgz";
 
-    hash = cfg.hash;
+      hash = cfg.hash;
+      stripRoot = false;
+    };
+  in
 
-    target = cfg.npmName;
-  }
+  runCommand "scriptc-runtime-${cfg.npmName}" { } ''
+    cp -R ${src}/package $TMPDIR/package
+
+    mkdir -p $out
+    cp -R $TMPDIR/package/* $out/
+  ''
 ) metadata

@@ -6,7 +6,7 @@
 
   aarch64-linux = {
     platform = "linux-arm64-gnu";
-    hash = "sha256-...";
+    hash = "sha256-CfY28aTrB87VWRAJHNkf8DzYPZBNdag4xrGIZzk6WAM=";
   };
 
   x86_64-darwin = {

@@ -6,8 +6,8 @@
 {
   perSystem =
     {
-      system,
       pkgs,
+      system,
       ...
     }:
 
@@ -20,46 +20,87 @@
 
       targetMetadata = import ./data/targets.nix;
 
-      scriptcPackage = pkgs.callPackage ./pkgs/scriptc.nix {
-        version = scriptcVersion;
-        compilerAssets = compilerMetadata;
-      };
-
-      runtimePacks = import ./pkgs/runtime-packs.nix {
-        inherit (pkgs)
-          fetchzip
-          lib
-          stdenvNoCC
-          ;
-
-        version = scriptcVersion;
-        metadata = runtimeMetadata;
-      };
-
-      runtimePackTree = pkgs.linkFarm "scriptc-runtime-packs" (
-        pkgs.lib.mapAttrsToList (name: drv: {
-          inherit name;
-          path = drv;
-        }) runtimePacks
-      );
-
-      mkWrapper = pkgs.callPackage ./pkgs/wrapper.nix {
+      hostPackages = import ./pkgs/mk-scriptc-packages.nix {
         inherit
-          scriptcPackage
-          runtimePackTree
+          scriptcVersion
+          compilerMetadata
+          runtimeMetadata
           targetMetadata
+          pkgs
+          system
           ;
       };
 
-      nativeToolchain = mkWrapper {
-        name = "scriptc";
-      };
+      inherit (hostPackages)
+        scriptcPackage
+        runtimePacks
+        nativeToolchain
+        crossToolchain
+        ;
 
-      crossToolchain = mkWrapper {
-        name = "scriptc-cross";
-        enableCross = true;
-      };
+      mkImage =
+        {
+          name,
+          tag ? scriptcVersion,
+          toolchain,
+          containerHostPkgs,
+        }:
 
+        containerHostPkgs.dockerTools.buildLayeredImage {
+          inherit name tag;
+
+          contents = [
+            toolchain
+          ];
+
+          config = {
+            Entrypoint = [
+              "${toolchain}/bin/${name}"
+            ];
+
+            Env = [
+              "HOME=/tmp"
+            ];
+
+            WorkingDir = "/workspace";
+          };
+        };
+
+      mkTargetPackages =
+        targetSystem:
+        let
+          targetPkgs = import inputs.nixpkgs {
+            system = targetSystem;
+          };
+        in
+        import ./pkgs/mk-scriptc-packages.nix {
+          inherit
+            scriptcVersion
+            compilerMetadata
+            runtimeMetadata
+            targetMetadata
+            ;
+
+          pkgs = targetPkgs;
+          system = targetSystem;
+        };
+
+      mkScriptcCrossImage =
+        targetSystem:
+        let
+          targetPackages = mkTargetPackages targetSystem;
+
+          containerHostPkgs = import inputs.nixpkgs {
+            system = targetSystem;
+          };
+        in
+        mkImage {
+          inherit containerHostPkgs;
+
+          name = "scriptc-cross";
+
+          toolchain = targetPackages.crossToolchain;
+        };
     in
     {
       packages = {
@@ -78,6 +119,25 @@
 
         scriptc-native = nativeToolchain;
         scriptc-cross = crossToolchain;
+
+        scriptc-image = pkgs.dockerTools.buildLayeredImage {
+          name = "scriptc";
+          tag = scriptcVersion;
+
+          contents = [
+            nativeToolchain
+          ];
+
+          config = {
+            Entrypoint = [
+              "${nativeToolchain}/bin/scriptc"
+            ];
+          };
+        };
+
+        scriptc-cross-image-arm64 = mkScriptcCrossImage "aarch64-linux";
+
+        scriptc-cross-image-amd64 = mkScriptcCrossImage "x86_64-linux";
 
         default = nativeToolchain;
       };
